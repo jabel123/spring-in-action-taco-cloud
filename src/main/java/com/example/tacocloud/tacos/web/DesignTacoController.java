@@ -1,14 +1,16 @@
 package com.example.tacocloud.tacos.web;
 
 import com.example.tacocloud.tacos.Ingredient;
+import com.example.tacocloud.tacos.Order;
 import com.example.tacocloud.tacos.Taco;
+import com.example.tacocloud.tacos.data.IngredientRepository;
+import com.example.tacocloud.tacos.data.TacoRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.util.ArrayList;
@@ -18,19 +20,39 @@ import java.util.stream.Collectors;
 @Slf4j
 @Controller
 @RequestMapping("/design")
+@SessionAttributes("order")
 public class DesignTacoController
 {
+    private final IngredientRepository ingredientRepository;
+    private final TacoRepository tacoRepository;
+
+    @ModelAttribute(name = "order")
+    public Order order()
+    {
+        return new Order();
+    }
+
+    @ModelAttribute(name = "taco")
+    public Taco taco()
+    {
+        return new Taco();
+    }
+
+    @Autowired
+    public DesignTacoController(IngredientRepository ingredientRepository
+            , TacoRepository tacoRepository)
+    {
+        this.ingredientRepository = ingredientRepository;
+        this.tacoRepository = tacoRepository;
+    }
+
+
     @GetMapping
     public String showDesignForm(Model model)
     {
         List<Ingredient> ingredients = new ArrayList<>();
-        for (int i = 0; i < 2; i++) {
-            ingredients.add(new Ingredient("WRAP" + i, "WRAP INGREDIENT" + i, Ingredient.Type.WRAP));
-            ingredients.add(new Ingredient("CHEES" + i, "CHEES INGREDIENT" + i, Ingredient.Type.CHEES));
-            ingredients.add(new Ingredient("PROTEIN" + i, "PROTEIN INGREDIENT" + i, Ingredient.Type.PROTEIN));
-            ingredients.add(new Ingredient("SAUCE" + i, "SAUCE INGREDIENT" + i, Ingredient.Type.SAUCE));
-            ingredients.add(new Ingredient("VEGGIES" + i, "VEGGIES INGREDIENT" + i, Ingredient.Type.VEGGIES));
-        }
+        ingredientRepository.findAll().forEach(i -> ingredients.add(i));
+
         Ingredient.Type[] types = Ingredient.Type.values();
         for (Ingredient.Type type : types)
         {
@@ -51,14 +73,16 @@ public class DesignTacoController
     }
 
     @PostMapping
-    public String processDesign(@Valid Taco design, Errors errors)
+    public String processDesign(@Valid Taco design, Errors errors, @ModelAttribute Order order)
     {
         if (errors.hasErrors())
         {
             return "design";
         }
 
-        log.info("Processing design: " + design);
+        Taco saved = tacoRepository.save(design);
+        order.addDesign(saved);
+
         return "redirect:/orders/current";
     }
 }
